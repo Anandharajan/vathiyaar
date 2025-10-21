@@ -1,0 +1,15 @@
+gradio==4.44.0
+transformers>=4.44.0
+accelerate>=0.34.0
+torch  # use Space's CUDA build
+bitsandbytes>=0.43.0
+faster-whisper==1.0.3
+chromadb==0.5.5
+sentence-transformers==3.1.1
+pypdf==4.3.1
+numpy==2.1.2
+onnxruntime-gpu; platform_system != "Darwin"
+TTS==0.22.0
+soundfile==0.12.1
+python-dotenv==1.0.1
+pytest==8.3.2

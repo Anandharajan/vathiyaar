@@ -25,6 +25,20 @@ jobs:
       - name: Run tests
         run: pytest
 
+      - name: Validate Hugging Face secrets
+        env:
+          HF_SPACE_REPO_ID: ${{ secrets.HF_SPACE_REPO_ID }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_SPACE_REPO_ID" ]; then
+            echo "HF_SPACE_REPO_ID secret is not set."
+            exit 1
+          fi
+          if [ -z "$HF_TOKEN" ]; then
+            echo "HF_TOKEN secret is not set."
+            exit 1
+          fi
+
       - name: Push to Hub
         uses: huggingface/hub-action@v1
         with:

@@ -3,8 +3,15 @@ from __future__ import annotations
 from threading import Thread
 from typing import Generator, Optional
 
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+try:  # pragma: no cover - optional heavy deps
+    import torch
+except Exception:  # pragma: no cover - optional dependency for tests
+    torch = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional heavy deps
+    from transformers import AutoModelForCausalLM, AutoTokenizer, TextIteratorStreamer
+except Exception:  # pragma: no cover - optional dependency for tests
+    AutoModelForCausalLM = AutoTokenizer = TextIteratorStreamer = None  # type: ignore[assignment]
 
 from app.config import CFG
 from app.prompts import SYSTEM_PROMPT
@@ -16,11 +23,17 @@ _MODEL: Optional[AutoModelForCausalLM] = None
 def _load_model() -> tuple[AutoTokenizer, AutoModelForCausalLM]:
     global _TOKENIZER, _MODEL
     if _MODEL is None or _TOKENIZER is None:
+        if AutoTokenizer is None or AutoModelForCausalLM is None or torch is None:
+            raise RuntimeError(
+                "Transformer dependencies missing. Install torch and transformers to generate responses."
+            )
         llm_id = CFG["llm_id"]
         kwargs = {
-            "device_map": "auto",
+            "device_map": "auto" if torch.cuda.is_available() else None,
             "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
         }
+        if kwargs["device_map"] is None:
+            kwargs.pop("device_map")
         try:  # try 4-bit quantization when bitsandbytes is present
             import bitsandbytes as _  # noqa: F401
 

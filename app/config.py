@@ -1,6 +1,12 @@
 import os
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except Exception:  # pragma: no cover - optional dependency for tests
+    def load_dotenv(*_args, **_kwargs):  # type: ignore[override]
+        """Fallback when python-dotenv is unavailable."""
+
+        return False
 
 load_dotenv()
 

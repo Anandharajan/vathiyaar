@@ -2,18 +2,49 @@ import argparse
 import os
 from typing import Iterable, List, Sequence, Tuple
 
-import chromadb
-from pypdf import PdfReader
-from sentence_transformers import SentenceTransformer
+try:  # pragma: no cover - optional heavy deps
+    import chromadb
+except Exception:  # pragma: no cover
+    chromadb = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional heavy deps
+    from pypdf import PdfReader
+except Exception:  # pragma: no cover
+    PdfReader = None  # type: ignore[assignment]
+
+try:  # pragma: no cover - optional heavy deps
+    from sentence_transformers import SentenceTransformer
+except Exception:  # pragma: no cover
+    SentenceTransformer = None  # type: ignore[assignment]
 
 from app.config import CFG
 
-_EMBED = SentenceTransformer(CFG["embeddings"])
-_CLIENT = chromadb.PersistentClient(path=CFG["chroma_dir"])
+_EMBED = None
+_CLIENT = None
+
+
+def _ensure_client():
+    global _CLIENT
+    if chromadb is None:
+        raise RuntimeError("chromadb is required for retrieval. Install chromadb to enable RAG.")
+    if _CLIENT is None:
+        _CLIENT = chromadb.PersistentClient(path=CFG["chroma_dir"])
+    return _CLIENT
+
+
+def _ensure_embedder():
+    global _EMBED
+    if SentenceTransformer is None:
+        raise RuntimeError(
+            "sentence-transformers is required for embeddings. Install sentence-transformers to enable RAG."
+        )
+    if _EMBED is None:
+        _EMBED = SentenceTransformer(CFG["embeddings"])
+    return _EMBED
 
 
 def _collection():
-    return _CLIENT.get_or_create_collection("study_notes")
+    return _ensure_client().get_or_create_collection("study_notes")
 
 
 def _split_text(text: str, chunk: int = 800, overlap: int = 120) -> List[str]:
@@ -30,7 +61,8 @@ def _split_text(text: str, chunk: int = 800, overlap: int = 120) -> List[str]:
 def _embed(texts: Sequence[str]) -> List[List[float]]:
     if not texts:
         return []
-    return _EMBED.encode(texts, normalize_embeddings=True).tolist()
+    embedder = _ensure_embedder()
+    return embedder.encode(texts, normalize_embeddings=True).tolist()
 
 
 def ingest() -> None:
@@ -39,6 +71,8 @@ def ingest() -> None:
     metas: List[dict] = []
 
     os.makedirs(CFG["docs_dir"], exist_ok=True)
+    if PdfReader is None:
+        raise RuntimeError("pypdf is required to ingest documents. Install pypdf to enable ingestion.")
     for filename in os.listdir(CFG["docs_dir"]):
         if not filename.lower().endswith(".pdf"):
             continue
@@ -85,7 +119,7 @@ def _main() -> None:
 
     if args.rebuild:
         try:
-            _CLIENT.delete_collection("study_notes")
+            _ensure_client().delete_collection("study_notes")
         except Exception:
             pass
     _collection()
